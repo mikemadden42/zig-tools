@@ -11,8 +11,24 @@ pub fn main(init: std.process.Init) !void {
     var month: u4 = undefined;
 
     if (args.len == 3) {
-        month = try std.fmt.parseInt(u4, args[1], 10);
-        year = try std.fmt.parseInt(u16, args[2], 10);
+        month = std.fmt.parseInt(u4, args[1], 10) catch {
+            var stderr = std.Io.File.stderr().writer(init.io, &buf);
+            try stderr.interface.writeAll("Error: invalid month\n");
+            try stderr.interface.flush();
+            std.process.exit(1);
+        };
+        if (month < 1 or month > 12) {
+            var stderr = std.Io.File.stderr().writer(init.io, &buf);
+            try stderr.interface.writeAll("Error: month must be between 1 and 12\n");
+            try stderr.interface.flush();
+            std.process.exit(1);
+        }
+        year = std.fmt.parseInt(u16, args[2], 10) catch {
+            var stderr = std.Io.File.stderr().writer(init.io, &buf);
+            try stderr.interface.writeAll("Error: invalid year\n");
+            try stderr.interface.flush();
+            std.process.exit(1);
+        };
     } else if (args.len == 1) {
         const now = std.Io.Timestamp.now(init.io, .real);
         const secs: u64 = @intCast(now.toSeconds());

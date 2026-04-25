@@ -11,10 +11,17 @@ PREFIX ?= /usr/local
 # Default zig build flags (can be overridden)
 ZIGFLAGS := -O ReleaseFast -fstrip
 
-.PHONY: all clean fmt install
+.PHONY: all clean fmt install test
 
 # Default target to build all binaries
 all: $(BINARIES)
+
+# Run basic tests
+test: all
+	./hello
+	./goodpass 16
+	./cal 4 2026
+	@echo "All tests passed!"
 
 # Pattern rule to build each binary from its source
 %: %.zig
