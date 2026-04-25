@@ -3,11 +3,20 @@
 const std = @import("std");
 
 pub fn main(init: std.process.Init) !void {
+    const args = try init.minimal.args.toSlice(init.arena.allocator());
+    var buf: [4096]u8 = undefined;
+
+    if (args.len != 1) {
+        var stderr = std.Io.File.stderr().writer(init.io, &buf);
+        try stderr.interface.print("Usage: {s}\n", .{args[0]});
+        try stderr.interface.flush();
+        std.process.exit(1);
+    }
+
     const io = init.io;
     const allocator = init.gpa;
 
     const stdout = std.Io.File.stdout();
-    var buf: [4096]u8 = undefined;
     var writer_wrapper = stdout.writer(init.io, &buf);
     var writer = &writer_wrapper.interface;
 

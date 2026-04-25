@@ -37,8 +37,17 @@ pub fn clean(init: std.process.Init, writer: anytype) !void {
 }
 
 pub fn main(init: std.process.Init) !void {
-    const stdout = std.Io.File.stdout();
+    const args = try init.minimal.args.toSlice(init.arena.allocator());
     var buf: [4096]u8 = undefined;
+
+    if (args.len != 1) {
+        var stderr = std.Io.File.stderr().writer(init.io, &buf);
+        try stderr.interface.print("Usage: {s}\n", .{args[0]});
+        try stderr.interface.flush();
+        std.process.exit(1);
+    }
+
+    const stdout = std.Io.File.stdout();
     var writer = stdout.writer(init.io, &buf);
 
     try clean(init, &writer.interface);

@@ -15,6 +15,12 @@ pub fn main(init: std.process.Init) !void {
     }
 
     const length = try std.fmt.parseInt(usize, args[1], 10);
+    if (length == 0 or length > 1024) {
+        var stderr = std.Io.File.stderr().writer(init.io, &buf);
+        try stderr.interface.writeAll("Error: length must be between 1 and 1024\n");
+        try stderr.interface.flush();
+        std.process.exit(1);
+    }
     const password = try generatePassword(init.gpa, init.io, length);
     defer init.gpa.free(password);
 
