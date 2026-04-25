@@ -27,6 +27,12 @@ make cal
 # Format all source files
 make fmt
 
+# Run basic verification tests
+make test
+
+# Install tools to /usr/local/bin (requires sudo)
+sudo make install
+
 # Clean build artifacts
 make clean
 ```

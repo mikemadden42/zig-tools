@@ -33,8 +33,8 @@ fmt:
 
 # Install binaries to PREFIX/bin
 install: all
-	mkdir -p $(DESTDIR)$(PREFIX)/bin
-	cp $(BINARIES) $(DESTDIR)$(PREFIX)/bin
+	install -d $(DESTDIR)$(PREFIX)/bin
+	install -m 755 $(BINARIES) $(DESTDIR)$(PREFIX)/bin
 
 # Clean target to remove all binaries
 clean:
