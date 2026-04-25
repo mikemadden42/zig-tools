@@ -13,7 +13,7 @@ pub fn main(init: std.process.Init) !void {
     if (args.len == 3) {
         month = try std.fmt.parseInt(u4, args[1], 10);
         year = try std.fmt.parseInt(u16, args[2], 10);
-    } else {
+    } else if (args.len == 1) {
         const now = std.Io.Timestamp.now(init.io, .real);
         const secs: u64 = @intCast(now.toSeconds());
         const epoch_seconds = std.time.epoch.EpochSeconds{ .secs = secs };
@@ -21,6 +21,11 @@ pub fn main(init: std.process.Init) !void {
         const month_day = year_day.calculateMonthDay();
         year = year_day.year;
         month = @intCast(@intFromEnum(month_day.month));
+    } else {
+        var stderr = std.Io.File.stderr().writer(init.io, &buf);
+        try stderr.interface.print("Usage: {s} [month year]\n", .{args[0]});
+        try stderr.interface.flush();
+        std.process.exit(1);
     }
 
     try printCalendar(&writer.interface, year, month);

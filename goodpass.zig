@@ -8,9 +8,10 @@ pub fn main(init: std.process.Init) !void {
     const args = try init.minimal.args.toSlice(init.arena.allocator());
 
     if (args.len != 2) {
-        try writer.interface.print("Usage: {s} <password_length>\n", .{args[0]});
-        try writer.interface.flush();
-        return;
+        var stderr = std.Io.File.stderr().writer(init.io, &buf);
+        try stderr.interface.print("Usage: {s} <password_length>\n", .{args[0]});
+        try stderr.interface.flush();
+        std.process.exit(1);
     }
 
     const length = try std.fmt.parseInt(usize, args[1], 10);
