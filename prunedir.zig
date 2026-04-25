@@ -1,14 +1,15 @@
 const std = @import("std");
-const fs = std.fs;
 const mem = std.mem;
 const print = std.debug.print;
 
-pub fn clean() !void {
-    var dir = try fs.cwd().openDir(".", .{ .iterate = true });
-    defer dir.close();
+pub fn clean(allocator: std.mem.Allocator, io: std.Io) !void {
+    const cwd = std.Io.Dir.cwd();
+
+    var dir = try cwd.openDir(io, ".", .{ .iterate = true });
+    defer dir.close(io);
 
     var iter = dir.iterate();
-    while (try iter.next()) |entry| {
+    while (try iter.next(io)) |entry| {
         if (entry.kind != .file) continue;
 
         const file_name = entry.name;
@@ -16,29 +17,25 @@ pub fn clean() !void {
 
         if (mem.lastIndexOf(u8, file_name, ".")) |dot_index| {
             const extension = file_name[dot_index + 1 ..];
-            if (mem.eql(u8, extension, "9")) continue;
 
-            const dest_dir_path = try std.fmt.allocPrint(std.heap.page_allocator, "Documents/{s}", .{extension});
-            defer std.heap.page_allocator.free(dest_dir_path);
+            const dest_dir_path = try std.fmt.allocPrint(allocator, "Documents/{s}", .{extension});
+            defer allocator.free(dest_dir_path);
 
-            try fs.cwd().makePath(dest_dir_path);
+            try cwd.createDirPath(io, dest_dir_path);
 
-            const dest_path = try std.fmt.allocPrint(std.heap.page_allocator, "{s}/{s}", .{ dest_dir_path, file_name });
-            defer std.heap.page_allocator.free(dest_path);
+            const dest_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dest_dir_path, file_name });
+            defer allocator.free(dest_path);
 
-            if (fs.cwd().access(dest_path, .{})) |_| {
+            if (cwd.access(io, dest_path, .{})) |_| {
                 print("File {s} already exists in {s}\n", .{ file_name, dest_dir_path });
             } else |_| {
-                try fs.cwd().rename(file_name, dest_path);
+                try cwd.rename(file_name, cwd, dest_path, io);
                 print("Moved {s} to {s}\n", .{ file_name, dest_dir_path });
             }
         }
     }
 }
 
-pub fn main() !void {
-    clean() catch |err| {
-        print("Error: {}\n", .{err});
-        return err;
-    };
+pub fn main(init: std.process.Init) !void {
+    try clean(init.gpa, init.io);
 }

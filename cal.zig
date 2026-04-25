@@ -1,14 +1,11 @@
 const std = @import("std");
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    defer _ = gpa.deinit();
+pub fn main(init: std.process.Init) !void {
+    const stdout = std.Io.File.stdout();
+    var buf: [4096]u8 = undefined;
+    var writer = stdout.writer(init.io, &buf);
 
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
-
-    const stdout = std.io.getStdOut().writer();
+    const args = try init.minimal.args.toSlice(init.arena.allocator());
 
     var year: u16 = undefined;
     var month: u4 = undefined;
@@ -17,15 +14,20 @@ pub fn main() !void {
         month = try std.fmt.parseInt(u4, args[1], 10);
         year = try std.fmt.parseInt(u16, args[2], 10);
     } else {
-        const now = std.time.timestamp();
-        year = @as(u16, @intCast(@divFloor(now, 365 * 24 * 60 * 60) + 1970));
-        month = @as(u4, @intCast(@mod(@divFloor(@mod(now, 365 * 24 * 60 * 60), 30 * 24 * 60 * 60), 12) + 1));
+        const now = std.Io.Timestamp.now(init.io, .real);
+        const secs: u64 = @intCast(now.toSeconds());
+        const epoch_seconds = std.time.epoch.EpochSeconds{ .secs = secs };
+        const year_day = epoch_seconds.getEpochDay().calculateYearDay();
+        const month_day = year_day.calculateMonthDay();
+        year = year_day.year;
+        month = @intCast(@intFromEnum(month_day.month));
     }
 
-    try printCalendar(stdout, year, month);
+    try printCalendar(&writer.interface, year, month);
+    try writer.interface.flush();
 }
 
-fn printCalendar(writer: anytype, year: u16, month: u4) !void {
+fn printCalendar(writer: *std.Io.Writer, year: u16, month: u4) !void {
     const monthName = [_][]const u8{ "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
     const daysInMonth = [_]u5{ 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
@@ -38,12 +40,12 @@ fn printCalendar(writer: anytype, year: u16, month: u4) !void {
     const rightPadding = 20 - header.len - leftPadding;
 
     // Print centered header
-    try writer.writeByteNTimes(' ', leftPadding);
+    try writer.splatByteAll(' ', leftPadding);
     try writer.writeAll(header);
-    try writer.writeByteNTimes(' ', rightPadding + 2); // Add 2 extra spaces
+    try writer.splatByteAll(' ', rightPadding + 2);
     try writer.writeByte('\n');
 
-    try writer.writeAll("Su Mo Tu We Th Fr Sa  \n"); // Note the two spaces at end
+    try writer.writeAll("Su Mo Tu We Th Fr Sa  \n");
 
     const firstDayOfMonth = calculateDayOfWeek(year, month, 1);
 
@@ -59,23 +61,20 @@ fn printCalendar(writer: anytype, year: u16, month: u4) !void {
 
     while (day <= days) : (day += 1) {
         if (weekDay == 6) {
-            // Last day of week
             try writer.print("{d:2}  \n", .{day});
         } else if (day == days) {
-            // Last day of month
             const remainingSpaces = (6 - weekDay) * 3 + 2;
             try writer.print("{d:2}", .{day});
-            try writer.writeByteNTimes(' ', remainingSpaces);
+            try writer.splatByteAll(' ', remainingSpaces);
             try writer.writeByte('\n');
         } else {
-            // Regular day
             try writer.print("{d:2} ", .{day});
         }
         weekDay = (weekDay + 1) % 7;
     }
 
     // Add final empty line with 22 spaces
-    try writer.writeByteNTimes(' ', 22);
+    try writer.splatByteAll(' ', 22);
     try writer.writeByte('\n');
 }
 
