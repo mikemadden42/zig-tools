@@ -1,24 +1,28 @@
 // zig build-exe tidy.zig -O ReleaseFast
 
 const std = @import("std");
-const print = std.debug.print;
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
     const allocator = init.gpa;
 
+    const stdout = std.Io.File.stdout();
+    var buf: [4096]u8 = undefined;
+    var writer = (stdout.writer(init.io, &buf)).interface;
+
     var dir = std.Io.Dir.cwd().openDir(io, ".", .{ .iterate = true }) catch |err| {
-        print("Error opening directory: {}\n", .{err});
+        try writer.print("Error opening directory: {}\n", .{err});
+        try writer.flush();
         return err;
     };
     defer dir.close(io);
 
     var it = dir.iterate();
     while (try it.next(io)) |entry| {
-        print("Processing file: {s}\n", .{entry.name});
+        try writer.print("Processing file: {s}\n", .{entry.name});
 
         if (entry.kind == .directory) {
-            print("Skipping directory: {s}\n", .{entry.name});
+            try writer.writeAll("Skipping directory\n");
             continue;
         }
 
@@ -39,20 +43,19 @@ pub fn main(init: std.process.Init) !void {
         };
 
         if (date) |d| {
-            print("Valid date found: {s}\n", .{d});
+            try writer.print("Valid date found: {s}\n", .{d});
 
             try dir.createDirPath(io, d);
 
             const new_path = try std.fs.path.join(allocator, &[_][]const u8{ d, entry.name });
             defer allocator.free(new_path);
 
-            print("Attempting to move {s} to {s}\n", .{ entry.name, new_path });
+            try writer.print("Attempting to move {s} to {s}\n", .{ entry.name, new_path });
             try dir.rename(entry.name, dir, new_path, io);
-            print("Successfully moved {s} to {s}\n", .{ entry.name, new_path });
+            try writer.print("Successfully moved {s} to {s}\n", .{ entry.name, new_path });
         } else {
-            print("No date pattern found in: {s}\n", .{entry.name});
+            try writer.print("No date pattern found in: {s}\n", .{entry.name});
         }
     }
-
-    print("Files have been organized by date.\n", .{});
+    try writer.flush();
 }

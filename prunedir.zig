@@ -1,9 +1,10 @@
 const std = @import("std");
 const mem = std.mem;
-const print = std.debug.print;
 
-pub fn clean(allocator: std.mem.Allocator, io: std.Io) !void {
+pub fn clean(init: std.process.Init, writer: anytype) !void {
     const cwd = std.Io.Dir.cwd();
+    const io = init.io;
+    const allocator = init.gpa;
 
     var dir = try cwd.openDir(io, ".", .{ .iterate = true });
     defer dir.close(io);
@@ -13,7 +14,6 @@ pub fn clean(allocator: std.mem.Allocator, io: std.Io) !void {
         if (entry.kind != .file) continue;
 
         const file_name = entry.name;
-        if (file_name[0] == '.') continue; // Skip dotfiles
 
         if (mem.lastIndexOf(u8, file_name, ".")) |dot_index| {
             const extension = file_name[dot_index + 1 ..];
@@ -27,15 +27,21 @@ pub fn clean(allocator: std.mem.Allocator, io: std.Io) !void {
             defer allocator.free(dest_path);
 
             if (cwd.access(io, dest_path, .{})) |_| {
-                print("File {s} already exists in {s}\n", .{ file_name, dest_dir_path });
+                try writer.print("File {s} already exists in {s}\n", .{ file_name, dest_dir_path });
             } else |_| {
                 try cwd.rename(file_name, cwd, dest_path, io);
-                print("Moved {s} to {s}\n", .{ file_name, dest_dir_path });
+                try writer.print("Moved {s} to {s}\n", .{ file_name, dest_dir_path });
             }
         }
     }
 }
 
 pub fn main(init: std.process.Init) !void {
-    try clean(init.gpa, init.io);
+    const stdout = std.Io.File.stdout();
+    var buf: [4096]u8 = undefined;
+    var writer = stdout.writer(init.io, &buf);
+
+    try clean(init, &writer.interface);
+    try writer.interface.flush();
 }
+
