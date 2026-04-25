@@ -5,14 +5,13 @@ BINARIES := $(SOURCES:.zig=)
 # Create object file names from binary names
 OBJECTS := $(BINARIES:%=%.o)
 
-# Default zig build flags (can be overridden)
-#ZIGFLAGS := -O Debug
-#ZIGFLAGS := -O ReleaseSafe
-#ZIGFLAGS := -O ReleaseFast
-ZIGFLAGS := -O ReleaseFast -fstrip
-#ZIGFLAGS := -O ReleaseSmall
+# Installation prefix
+PREFIX ?= /usr/local
 
-.PHONY: all clean
+# Default zig build flags (can be overridden)
+ZIGFLAGS := -O ReleaseFast -fstrip
+
+.PHONY: all clean fmt install
 
 # Default target to build all binaries
 all: $(BINARIES)
@@ -24,7 +23,11 @@ all: $(BINARIES)
 # Format all Zig source files
 fmt:
 	zig fmt --ast-check --color auto $(SOURCES)
-	#zig fmt $(SOURCES)
+
+# Install binaries to PREFIX/bin
+install: all
+	mkdir -p $(DESTDIR)$(PREFIX)/bin
+	cp $(BINARIES) $(DESTDIR)$(PREFIX)/bin
 
 # Clean target to remove all binaries
 clean:

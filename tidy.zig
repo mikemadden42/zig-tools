@@ -8,7 +8,8 @@ pub fn main(init: std.process.Init) !void {
 
     const stdout = std.Io.File.stdout();
     var buf: [4096]u8 = undefined;
-    var writer = (stdout.writer(init.io, &buf)).interface;
+    var writer_wrapper = stdout.writer(init.io, &buf);
+    var writer = &writer_wrapper.interface;
 
     var dir = std.Io.Dir.cwd().openDir(io, ".", .{ .iterate = true }) catch |err| {
         try writer.print("Error opening directory: {}\n", .{err});
