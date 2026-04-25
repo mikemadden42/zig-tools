@@ -55,13 +55,22 @@ pub fn main(init: std.process.Init) !void {
         if (date) |d| {
             try writer.print("Valid date found: {s}\n", .{d});
 
-            try dir.createDirPath(io, d);
+            dir.createDirPath(io, d) catch |err| {
+                try writer.print("Error creating directory {s}: {}\n", .{ d, err });
+                continue;
+            };
 
-            const new_path = try std.fs.path.join(allocator, &[_][]const u8{ d, entry.name });
+            const new_path = std.fs.path.join(allocator, &[_][]const u8{ d, entry.name }) catch |err| {
+                try writer.print("Error preparing path for {s}: {}\n", .{ entry.name, err });
+                continue;
+            };
             defer allocator.free(new_path);
 
             try writer.print("Attempting to move {s} to {s}\n", .{ entry.name, new_path });
-            try dir.rename(entry.name, dir, new_path, io);
+            dir.rename(entry.name, dir, new_path, io) catch |err| {
+                try writer.print("Error moving {s}: {}\n", .{ entry.name, err });
+                continue;
+            };
             try writer.print("Successfully moved {s} to {s}\n", .{ entry.name, new_path });
         } else {
             try writer.print("No date pattern found in: {s}\n", .{entry.name});

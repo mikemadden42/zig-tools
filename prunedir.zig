@@ -18,18 +18,30 @@ pub fn clean(init: std.process.Init, writer: anytype) !void {
         if (mem.lastIndexOf(u8, file_name, ".")) |dot_index| {
             const extension = file_name[dot_index + 1 ..];
 
-            const dest_dir_path = try std.fmt.allocPrint(allocator, "Documents/{s}", .{extension});
+            const dest_dir_path = std.fmt.allocPrint(allocator, "Documents/{s}", .{extension}) catch |err| {
+                try writer.print("Error preparing path for {s}: {}\n", .{ file_name, err });
+                continue;
+            };
             defer allocator.free(dest_dir_path);
 
-            try cwd.createDirPath(io, dest_dir_path);
+            cwd.createDirPath(io, dest_dir_path) catch |err| {
+                try writer.print("Error creating directory for {s}: {}\n", .{ extension, err });
+                continue;
+            };
 
-            const dest_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dest_dir_path, file_name });
+            const dest_path = std.fmt.allocPrint(allocator, "{s}/{s}", .{ dest_dir_path, file_name }) catch |err| {
+                try writer.print("Error preparing destination for {s}: {}\n", .{ file_name, err });
+                continue;
+            };
             defer allocator.free(dest_path);
 
             if (cwd.access(io, dest_path, .{})) |_| {
                 try writer.print("File {s} already exists in {s}\n", .{ file_name, dest_dir_path });
             } else |_| {
-                try cwd.rename(file_name, cwd, dest_path, io);
+                cwd.rename(file_name, cwd, dest_path, io) catch |err| {
+                    try writer.print("Error moving {s}: {}\n", .{ file_name, err });
+                    continue;
+                };
                 try writer.print("Moved {s} to {s}\n", .{ file_name, dest_dir_path });
             }
         }
